@@ -1,0 +1,70 @@
+name: Preview and release
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+jobs:
+  preview:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24', cache: npm }
+      - run: npm run install:deps
+      - run: npm run build
+      - name: Preview summary
+        run: |
+          echo "Preview build for PR #${{ github.event.pull_request.number }} succeeded." >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifacts: apps/web/dist apps/api/dist .build/vega-providers" >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24', cache: npm }
+      - uses: docker/setup-buildx-action@v3
+      - name: Install dependencies
+        run: npm run install:deps
+      - name: Quality gates
+        run: npm run check
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./
+          format: spdx-json
+          output-file: sbom.spdx.json
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.api
+          push: true
+          tags: ghcr.io/${{ github.repository }}/api:${{ github.ref_name }},ghcr.io/${{ github.repository }}/api:latest
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - name: Build and push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.web
+          push: true
+          tags: ghcr.io/${{ github.repository }}/web:${{ github.ref_name }},ghcr.io/${{ github.repository }}/web:latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+      - name: One-click rollback note
+        run: |
+          echo "To roll back: kubectl rollout undo deployment/movie-platform-api" >> "$GITHUB_STEP_SUMMARY"
+          echo "Or redeploy the previous tag: ${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"

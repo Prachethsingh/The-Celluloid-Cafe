@@ -1,0 +1,124 @@
+name: Build and test
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/api/package-lock.json
+            apps/web/package-lock.json
+      - name: Install webapp and API dependencies
+        run: npm run install:deps
+      - name: Install pinned adaptive playback engine
+        run: npm run install:player
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Audit application dependencies
+        run: |
+          npm audit --audit-level=high
+          npm audit --prefix apps/api --audit-level=high
+          npm audit --prefix apps/web --audit-level=high
+      - name: Lint, typecheck, test, and build all provider modules
+        run: npm run check
+      - name: Verify player packaging and lifecycle
+        run: npm run test:player
+      - name: Decode local HLS and DASH with installed Shaka
+        run: npm run test:adaptive
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-api-providers
+          include-hidden-files: true
+          path: |
+            apps/web/dist/
+            apps/api/dist/
+            .build/vega-providers/
+
+  vega-packages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            packages/vega-providers/package-lock.json
+            packages/vega-app/package-lock.json
+      - name: Install both upstream Vega repositories
+        run: npm run install:all
+      - name: Install pinned adaptive playback engine
+        run: npm run install:player
+      - name: Install browser for fresh sandbox validation
+        run: npx playwright install --with-deps chromium
+      - name: Build webapp, API, provider bundles, and Vega app sandbox
+        env:
+          VEGA_REQUIRE_SOURCE: 'true'
+        run: npm run build:all
+      - name: Test the rebuilt upstream sandbox through the webapp
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: upstream-sandbox-browser-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vega-package-builds
+          include-hidden-files: true
+          path: |
+            .build/vega-providers/
+            .build/vega-app/
+            packages/vega-app/LICENSE
+            packages/vega-app/NOTICE
+
+  docker:
+    needs: [app, vega-packages]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        service: [api, web]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.${{ matrix.service }}
+          push: false
+          tags: movie-platform-${{ matrix.service }}:ci
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}

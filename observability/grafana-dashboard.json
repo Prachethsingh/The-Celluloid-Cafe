@@ -1,0 +1,14 @@
+{
+  "title": "Movie Platform — Golden Signals",
+  "uid": "movie-platform-golden-signals",
+  "timezone": "utc",
+  "panels": [
+    { "title": "Requests per second", "targets": [{ "expr": "sum(rate(movie_platform_route_requests_total[5m]))" }] },
+    { "title": "Error rate", "targets": [{ "expr": "sum(rate(movie_platform_route_errors_total[5m])) / sum(rate(movie_platform_route_requests_total[5m]))" }] },
+    { "title": "p50 / p95 / p99 latency (ms)", "targets": [{ "expr": "movie_platform_latency_ms" }] },
+    { "title": "In-flight saturation", "targets": [{ "expr": "movie_platform_in_flight" }] },
+    { "title": "Requests by route", "targets": [{ "expr": "sum by (route) (rate(movie_platform_route_requests_total[5m]))" }] },
+    { "title": "Errors by route", "targets": [{ "expr": "sum by (route) (rate(movie_platform_route_errors_total[5m]))" }] }
+  ],
+  "slo": { "availability_target": 0.995, "p95_latency_budget_ms": 800, "error_budget_policy": "Block releases when 30d burn exceeds budget" }
+}

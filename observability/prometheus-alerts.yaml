@@ -1,0 +1,31 @@
+groups:
+  - name: movie-platform-slo
+    interval: 30s
+    rules:
+      - record: slo:availability_30d
+        expr: |
+          1 - sum(rate(movie_platform_route_errors_total[30d])) / sum(rate(movie_platform_route_requests_total[30d]))
+      - alert: HighErrorBudgetBurn
+        expr: |
+          sum(rate(movie_platform_route_errors_total[5m])) / sum(rate(movie_platform_route_requests_total[5m])) > 0.02
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: Error budget burning faster than 2% over 5 minutes
+          runbook: docs/runbook.md#high-error-rate
+      - alert: TailLatencyBreach
+        expr: |
+          movie_platform_latency_ms{quantile="0.95"} > 800
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: p95 latency above 800ms for 10 minutes
+          runbook: docs/runbook.md#tail-latency
+      - alert: SaturationRisk
+        expr: |
+          movie_platform_in_flight > 400
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: In-flight requests above saturation threshold
+          runbook: docs/runbook.md#saturation

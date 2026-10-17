@@ -1,0 +1,3 @@
+[console_scripts]
+mp-server = app.main:app
+mp-worker = app.workers.cli:worker_main

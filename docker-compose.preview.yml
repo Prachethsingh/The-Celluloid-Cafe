@@ -1,0 +1,17 @@
+services:
+  api-preview:
+    build: { context: ., dockerfile: docker/Dockerfile.api }
+    environment:
+      NODE_ENV: staging
+      PORT: 8000
+      PLAYBACK_SIGNING_KEY: preview-signing-key-min-32-chars-long
+    ports: ["8100:8000"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+  web-preview:
+    build: { context: ., dockerfile: docker/Dockerfile.web }
+    ports: ["5183:80"]
+    depends_on: [api-preview]

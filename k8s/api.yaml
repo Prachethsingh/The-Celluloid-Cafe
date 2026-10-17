@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: movie-platform-api
+  labels: { app: movie-platform-api }
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels: { app: movie-platform-api }
+  template:
+    metadata:
+      labels: { app: movie-platform-api, version: v1 }
+    spec:
+      containers:
+        - name: api
+          image: movie-platform-api:latest
+          ports: [{ containerPort: 8000 }]
+          env:
+            - { name: NODE_ENV, value: production }
+            - { name: PORT, value: "8000" }
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "2", memory: 2Gi }
+          startupProbe:
+            httpGet: { path: /startupz, port: 8000 }
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /livez, port: 8000 }
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /ready, port: 8000 }
+            periodSeconds: 5
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec: { command: [sh, -c, "sleep 10"] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: movie-platform-api
+spec:
+  selector: { app: movie-platform-api }
+  ports: [{ port: 8000, targetPort: 8000 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: movie-platform-api
+  annotations:
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+spec:
+  rules:
+    - http:
+        paths:
+          - { path: /, pathType: Prefix, backend: { service: { name: movie-platform-api, port: { number: 8000 } } } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: movie-platform-api
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: movie-platform-api }
+  minReplicas: 2
+  maxReplicas: 10
+  behavior:
+    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Percent, value: 25, periodSeconds: 60 }] }
+    scaleUp: { stabilizationWindowSeconds: 60, policies: [{ type: Percent, value: 100, periodSeconds: 60 }] }
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
+    - type: Resource
+      resource: { name: memory, target: { type: Utilization, averageUtilization: 75 } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: movie-platform-api
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: movie-platform-api }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: movie-platform-api
+spec:
+  podSelector:
+    matchLabels: { app: movie-platform-api }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - ports: [{ port: 8000 }]
+  egress:
+    - ports: [{ port: 443 }, { port: 53 }]

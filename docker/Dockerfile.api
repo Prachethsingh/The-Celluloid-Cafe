@@ -1,0 +1,37 @@
+FROM node:24-bookworm-slim AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --no-audit --no-fund
+COPY apps/api/package*.json ./apps/api/
+RUN npm ci --prefix apps/api --no-audit --no-fund
+COPY packages/vega-app/package*.json ./packages/vega-app/
+# Only JavaScript dependencies are needed for the sandbox; no native SDK hooks.
+RUN npm ci --prefix packages/vega-app --ignore-scripts --no-audit --no-fund
+COPY scripts/ ./scripts/
+COPY apps/web/src/data/mockCatalog.js ./apps/web/src/data/mockCatalog.js
+COPY apps/web/src/data/platformMoviesCatalog.js ./apps/web/src/data/platformMoviesCatalog.js
+COPY packages/vega-providers/ ./packages/vega-providers/
+COPY packages/vega-app/src/lib/sandbox/ ./packages/vega-app/src/lib/sandbox/
+RUN npm run build:providers
+RUN node scripts/build-catalog.cjs
+RUN VEGA_REQUIRE_SOURCE=true npm run build:vega-app
+COPY apps/api/src/ ./apps/api/src/
+COPY apps/api/tsconfig.json ./apps/api/
+RUN npm run build --prefix apps/api
+RUN npm prune --prefix apps/api --omit=dev --no-audit --no-fund
+
+FROM node:24-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=8000
+COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
+COPY --from=builder /app/apps/api/dist/ ./apps/api/dist/
+COPY --from=builder /app/apps/api/node_modules/ ./apps/api/node_modules/
+COPY --from=builder /app/.build/ ./.build/
+COPY --from=builder /app/packages/vega-providers/manifest.json ./packages/vega-providers/manifest.json
+COPY --from=builder /app/packages/vega-providers/urls.json ./packages/vega-providers/urls.json
+COPY packages/vega-app/LICENSE packages/vega-app/NOTICE ./licenses/vega-app/
+RUN mkdir -p /app/data && chown node:node /app/data
+USER node
+EXPOSE 8000
+CMD ["node", "apps/api/dist/index.js"]

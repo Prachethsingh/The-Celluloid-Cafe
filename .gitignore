@@ -1,0 +1,35 @@
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+playwright-diagnostics.zip
+playwright-full-output.log
+
+# Logs
+debug.log
+*.log
+
+# Generated graph artifacts
+graphify-out/
+
+# Local configuration and generated artifacts
+.env
+.env.*
+!.env.example
+dist/
+.build/
+.test-build/
+.cache/
+*.db
+__pycache__/
+.pytest_cache/
+scratch/
+apps/web/public/vendor/
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

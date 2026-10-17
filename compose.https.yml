@@ -1,0 +1,51 @@
+# Standalone production stack; do not combine with the HTTP development compose.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      PLAYBACK_SIGNING_KEY: ${PLAYBACK_SIGNING_KEY:?Set a signing key of at least 32 characters}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ALLOWED_ORIGINS: https://${SITE_DOMAIN:?Set your public DNS domain}
+    volumes:
+      - apidata:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        VITE_SITE_URL: https://${SITE_DOMAIN:?Set your public DNS domain}/
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+  gateway:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?Set your public DNS domain}
+      ACME_EMAIL: ${ACME_EMAIL:?Set the certificate contact email}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - web
+volumes:
+  apidata:
+  caddydata:
+  caddyconfig:

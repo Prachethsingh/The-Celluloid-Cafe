@@ -1,0 +1,53 @@
+{
+  "name": "movie-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CinePulse webapp, Hono API, and vendored Vega packages",
+  "allowScripts": {
+    "esbuild": true
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "install:deps": "node scripts/pipeline.cjs install",
+    "install:all": "node scripts/pipeline.cjs install-all",
+    "dev": "node --env-file-if-exists=.env scripts/pipeline.cjs dev",
+    "build": "node scripts/pipeline.cjs build",
+    "build:all": "node scripts/pipeline.cjs build-all",
+    "clean": "node scripts/pipeline.cjs clean",
+    "build:clean": "node scripts/pipeline.cjs build-clean",
+    "check:clean": "node scripts/pipeline.cjs check-clean",
+    "build:providers": "node scripts/build-providers.cjs",
+    "build:vega-app": "node scripts/build-vega-runtime.cjs",
+    "vega:android": "npm --prefix packages/vega-app run android",
+    "vega:start": "npm --prefix packages/vega-app run start",
+    "build:player": "node scripts/build-player.cjs",
+    "build:contract": "node scripts/pipeline.cjs contract",
+    "install:player": "node scripts/pipeline.cjs install-player",
+    "lint": "node scripts/pipeline.cjs lint",
+    "typecheck": "node scripts/pipeline.cjs typecheck",
+    "test": "node scripts/pipeline.cjs test",
+    "test:e2e": "playwright test",
+    "test:adaptive": "node scripts/pipeline.cjs test-adaptive",
+    "test:player": "node --test scripts/build-player.test.cjs scripts/adaptive-playback.test.cjs",
+    "test:e2e:all": "node scripts/pipeline.cjs test-all-browsers",
+    "check": "node scripts/pipeline.cjs check",
+    "db:backup": "node scripts/database.cjs backup",
+    "db:verify": "node scripts/database.cjs verify",
+    "db:restore": "node scripts/database.cjs restore",
+    "load:test": "node scripts/load-test.cjs",
+    "monitor:synthetic": "node scripts/synthetic-monitor.cjs",
+    "media:import": "node --env-file-if-exists=.env scripts/import-media.cjs",
+    "test:media": "node --test scripts/import-media.test.cjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.4",
+    "esbuild": "0.28.2"
+  }
+}

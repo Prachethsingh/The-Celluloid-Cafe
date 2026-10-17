@@ -1,0 +1,12 @@
+{
+    email {$ACME_EMAIL}
+}
+
+{$SITE_DOMAIN} {
+    header Strict-Transport-Security "max-age=31536000"
+    header X-Content-Type-Options "nosniff"
+    header Referrer-Policy "strict-origin-when-cross-origin"
+    @backend path /api/* /media/*
+    reverse_proxy @backend api:8000
+    reverse_proxy web:80
+}

@@ -1,0 +1,1228 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CinePulse MVP API",
+    "version": "1.0.0",
+    "description": "Active MVP contracts. Administrator permissions are enforced server-side. Maximum JSON request body: 64 KiB. Generated demo HLS/DASH manifests are retired."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "cp_session"
+      },
+      "csrfToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-CSRF-Token"
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Public API liveness",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/auth/session": {
+      "get": {
+        "summary": "Current account and CSRF token, or null when anonymous",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "summary": "Register an ordinary account and issue a cookie session",
+        "responses": {
+          "201": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 12,
+                    "maxLength": 128
+                  },
+                  "display_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Verify credentials and issue a cookie session",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 12,
+                    "maxLength": 128
+                  },
+                  "display_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "Revoke the current session",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/auth/password": {
+      "post": {
+        "summary": "Change password, revoke all previous sessions, issue a new session",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "current_password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "new_password": {
+                    "type": "string",
+                    "minLength": 12,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "current_password",
+                  "new_password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/sessions": {
+      "get": {
+        "summary": "List owned active sessions without raw session tokens",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/auth/sessions/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          }
+        }
+      ],
+      "delete": {
+        "summary": "Revoke an owned session",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/auth/export": {
+      "get": {
+        "summary": "Export account and owned library, omitting credential secrets",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/auth/account": {
+      "delete": {
+        "summary": "Delete account and owned library/sessions after password confirmation",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "password"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/library": {
+      "get": {
+        "summary": "Read the signed-in account watchlist and progress",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/library/{kind}/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          }
+        },
+        {
+          "name": "kind",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "watchlist",
+              "progress"
+            ]
+          }
+        }
+      ],
+      "put": {
+        "summary": "Upsert an owned item; body id must match path id; maximum 16 KiB JSON",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "movie",
+                      "series"
+                    ]
+                  },
+                  "progress_seconds": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000
+                  },
+                  "duration_seconds": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "type"
+                ],
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove an owned library item",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/playback/sources/{type}/{id}": {
+      "parameters": [
+        {
+          "name": "type",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          }
+        }
+      ],
+      "get": {
+        "summary": "Configured sources bound to exact title/episode, or an unavailable response",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        },
+        "parameters": [
+          {
+            "name": "episode_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 150
+            }
+          }
+        ]
+      }
+    },
+    "/playback/session": {
+      "post": {
+        "summary": "Issue a resource-bound playback token only when a source exists",
+        "responses": {
+          "201": {
+            "description": "Configured source URLs and signed resource-bound token; no DRM or quality entitlement claim"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "409": {
+            "description": "SOURCE_UNAVAILABLE"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content_type": {
+                    "type": "string",
+                    "enum": [
+                      "movie",
+                      "series"
+                    ]
+                  },
+                  "content_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 150
+                  },
+                  "episode_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "country_code": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{2}$"
+                  }
+                },
+                "required": [
+                  "content_type",
+                  "content_id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playback/{type}/{id}/session": {
+      "parameters": [
+        {
+          "name": "type",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          }
+        }
+      ],
+      "get": {
+        "summary": "Validate playback token expiry and exact route resource",
+        "responses": {
+          "200": {
+            "description": "Current source inventory"
+          },
+          "403": {
+            "description": "Invalid, expired, or mismatched token"
+          }
+        },
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/admin/system/status": {
+      "get": {
+        "summary": "Administrator-only real catalog counts, dependency state, and jobs",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/admin/sync": {
+      "post": {
+        "summary": "Administrator-only transactional upstream catalog sync; records job/audit state",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Completed synchronization"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Admin/CSRF required"
+          },
+          "409": {
+            "description": "Synchronization already running"
+          },
+          "502": {
+            "description": "Upstream unavailable; catalog unchanged"
+          }
+        }
+      }
+    },
+    "/admin/sources": {
+      "get": {
+        "summary": "Administrator-only configured source inventory",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      },
+      "post": {
+        "summary": "Administrator-only public title media source configuration",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content_id": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "movie",
+                      "series"
+                    ]
+                  },
+                  "episode_id": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "HTTPS without embedded credentials/private address, or a safe /media/ filename"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "mp4",
+                      "webm",
+                      "m3u8"
+                    ]
+                  },
+                  "provenance": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "content_id",
+                  "type",
+                  "url",
+                  "name",
+                  "format",
+                  "provenance"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/sources/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          }
+        }
+      ],
+      "delete": {
+        "summary": "Administrator-only source removal with audit event",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/admin/audit": {
+      "get": {
+        "summary": "Administrator-only recent audit events",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Sign in required"
+          },
+          "403": {
+            "description": "Invalid request token or insufficient permission"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/vega/identity/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          }
+        }
+      ],
+      "get": {
+        "summary": "Confirmed content identity or null; no placeholder IMDb fallback",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/vega/build": {
+      "get": {
+        "summary": "Provider and sandbox build provenance",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/vega/runtime": {
+      "get": {
+        "summary": "Compiled original browser sandbox document; 503 when unbuilt",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/vega/providers/{provider}/modules/{module}": {
+      "parameters": [
+        {
+          "name": "provider",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          }
+        },
+        {
+          "name": "module",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          }
+        }
+      ],
+      "get": {
+        "summary": "Compiled allowlisted original provider module; 404 when missing",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "429": {
+            "description": "Request limit reached"
+          },
+          "500": {
+            "description": "Unexpected server error; correlate X-Request-ID"
+          }
+        }
+      }
+    },
+    "/catalog": {
+      "get": {
+        "summary": "Persistent catalog search/filter/sort with bounded pagination; demo seed metadata explicitly labeled",
+        "responses": {
+          "200": {
+            "description": "Paged catalog",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total",
+                    "page",
+                    "limit",
+                    "has_more"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filters or min_year greater than max_year"
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "movie",
+                "series"
+              ]
+            }
+          },
+          {
+            "name": "genre",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "min_rating",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10
+            }
+          },
+          {
+            "name": "min_year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1800,
+              "maximum": 2200
+            }
+          },
+          {
+            "name": "max_year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1800,
+              "maximum": 2200
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "popularity",
+                "rating",
+                "year",
+                "title"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ]
+      }
+    }
+  }
+}

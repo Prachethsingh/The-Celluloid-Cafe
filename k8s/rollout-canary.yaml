@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: movie-platform-api
+spec:
+  replicas: 3
+  strategy:
+    canary:
+      canaryService: movie-platform-api-canary
+      stableService: movie-platform-api
+      trafficRouting:
+        istio:
+          virtualService: { name: movie-platform-api }
+      steps:
+        - setWeight: 5
+        - pause: { duration: 5m }
+        - analysis:
+            templates: [{ templateName: latency-error-analysis }]
+            args: [{ name: service, value: movie-platform-api-canary }]
+        - setWeight: 25
+        - pause: { duration: 10m }
+        - setWeight: 50
+        - pause: { duration: 10m }
+      trafficLossTolerance: 1
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: latency-error-analysis
+spec:
+  args: [{ name: service }]
+  metrics:
+    - name: error-rate
+      successCondition: result[0] < 0.01
+      provider:
+        prometheus:
+          address: http://prometheus:9090
+          query: |
+            sum(rate(movie_platform_route_errors_total[5m])) / sum(rate(movie_platform_route_requests_total[5m]))
+    - name: p95-latency
+      successCondition: result[0] < 800
+      provider:
+        prometheus:
+          address: http://prometheus:9090
+          query: |
+            movie_platform_latency_ms{quantile="0.95"}
