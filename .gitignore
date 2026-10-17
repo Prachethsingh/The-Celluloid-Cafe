@@ -29,7 +29,7 @@ __pycache__/
 .pytest_cache/
 scratch/
 apps/web/public/vendor/
-data/
+/data/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
